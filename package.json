@@ -1,0 +1,23 @@
+{
+  "name": "huum-controller",
+  "version": "0.0.1",
+  "license": "GPL-3.0-or-later",
+  "author": {
+    "name": "Kaur Palang",
+    "email": "5758525+kpalang@users.noreply.github.com",
+    "url": "https://github.com/kpalang/huum-controller"
+  },
+  "repository": "github:kpalang/huum-controller",
+  "type": "module",
+  "private": true,
+  "main": "src/main.ts",
+  "scripts": {
+    "start": "bun run src/main.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.14"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
