@@ -3,6 +3,8 @@
 This is a sample implementation of the Huum sauna controller communication protocol. It is used to control your
 [Huum](https://huumsauna.com/product/uku-wifi/) sauna without relying on their proprietary cloud.
 
+This repository is accompanied by a [blog post](https://kaurpalang.com/posts/invading-the-sauna/).
+
 ## Requirements
 - [Bun](https://bun.sh/)
   - The project is using Bun 1.12.4
