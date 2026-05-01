@@ -8,6 +8,7 @@ test("cloud updates with no heating window report online not heating", () => {
     )
 
     expect(deriveSessionHeaterStatus(update)).toBe('OnlineNotHeating')
+    expect(update.steamerIntensity).toBe(0)
     expect(update.lightConfigured).toBe(true)
 })
 
@@ -21,11 +22,22 @@ test("cloud updates with a heating window report online heating", () => {
 
 test("control echoes update light state immediately", () => {
     const update = parseControlUpdate(
-        Uint8Array.from([0x07, 0x41, 0x00, 0x01, 0x00, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x6A, 0xD3, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00])
+        Uint8Array.from([0x07, 0x41, 0x05, 0x01, 0x00, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x6A, 0xD3, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00])
     )
 
+    expect(update.steamerIntensity).toBe(5)
     expect(update.lightOn).toBe(true)
     expect(deriveSessionHeaterStatus(update)).toBe('OnlineNotHeating')
+})
+
+test("cloud updates parse steamer intensity from byte 2 independently from accessory bitmask", () => {
+    const update = parseCloudUpdate(
+        Uint8Array.from([0x08, 0x41, 0x0A, 0x00, 0x00, 0x03, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xC1, 0xBE, 0xF4, 0x69, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00])
+    )
+
+    expect(update.steamerIntensity).toBe(10)
+    expect(update.steamerConfigured).toBe(true)
+    expect(update.lightConfigured).toBe(true)
 })
 
 test("sensor raw status does not drive session heater state", () => {

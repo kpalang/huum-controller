@@ -53,6 +53,7 @@ Example response:
   "frequencySeconds": 60,
   "heaterStatus": "OnlineHeating",
   "targetTemperature": 65,
+  "steamerIntensity": 0,
   "lightOn": true,
   "lightConfigured": true,
   "steamerConfigured": false,
@@ -67,6 +68,7 @@ Example response:
 ```
 
 - `heaterStatus`: normalized session state derived from `0x07`/`0x08` updates, with `Offline` returned after more than 3 missed `0x09` heartbeats.
+- `steamerIntensity`: latest observed steamer intensity from byte `2` in `0x07`/`0x08`, currently observed in the range `0..10`.
 - `lightOn`: whether the sauna light is currently on.
 - `lightConfigured`: whether a light accessory is present/configured on the controller.
 - `steamerConfigured`: whether a steamer accessory is present/configured on the controller.
@@ -80,8 +82,8 @@ cloud update payload.
 
 This includes latest `lightOn`, `lightConfigured`, and `steamerConfigured` accessory flags derived from the `0x08` payload.
 
-This is useful for reverse engineering extra features such as light control: toggle the light physically or from the
-official app, then compare the JSON and `rawHex` fields before and after the change.
+This is useful for reverse engineering extra features such as light or steamer control: change them physically or from
+the official app, then compare the JSON and `rawHex` fields before and after the change.
 
 ---
 **`POST /start`**
@@ -118,6 +120,21 @@ type LightToggleRequest = {
 This sends a confirmed `0x07` control packet using byte `3` as the live light-state field and byte `5` as the
 accessory configuration bitmask observed from `0x08` status updates.
 
+---
+**`POST /steamer`**
+Endpoint for setting steamer intensity when the controller reports `steamerConfigured: true`.
+
+```typescript
+type SteamerSetRequest = {
+  intensity: number;
+}
+```
+
+Accepted values are integers in the range `0..10`.
+
+This sends a confirmed `0x07` control packet using byte `2` as the live steamer intensity field while preserving the
+latest known light state and accessory configuration.
+
 ## Home Assistant package
 
 A ready-to-use Home Assistant package is included at `homeassistant/packages/huum_sauna.yaml`.
@@ -139,6 +156,7 @@ To use it:
 The package exposes:
 - `switch.huum_sauna` for starting and stopping a sauna session
 - `switch.huum_light` for light control when the accessory is configured
+- `number.huum_steamer_intensity` for steamer control when the accessory is configured
 - `sensor.huum_sauna_temperature` and `sensor.huum_sauna_status` for monitoring
 - `input_number.huum_sauna_target_temperature` and `input_number.huum_sauna_duration` for session settings
 
@@ -175,7 +193,7 @@ control.
 |------|---------|---------|  
 | `0` | `07` | Message ID - Heater control |
 | `1` | `38` | Current temp in Hex (`56`deg here) |
-| `2` | `00` | Unknown |
+| `2` | `00` | Steamer intensity (`00`-`0a` observed) |
 | `3` | `00` | Light state (`00` off, `01` on) |
 | `4` | `00` | Unknown |
 | `5` | `00` | Accessory configuration bitmask (`01` steamer, `02` light, `03` both) |
@@ -199,7 +217,7 @@ Flipping byte 3 from 01 to 00 turns light off
 |------|---------|---------|
 | `0` | `07` | Message ID `0x07` |
 | `1` | `41` | Target temperature |
-| `2` | `00` | Unknown |
+| `2` | `00` | Steamer intensity (`00`-`0a` observed) |
 | `3` | `01` | Light state (`00` off, `01` on) |
 | `4` | `00` | Unknown |
 | `5` | `02` | Accessory configuration bitmask (`01` steamer, `02` light, `03` both) |
@@ -224,7 +242,7 @@ Message is used to send heater state changes to the cloud.
 |------|---------|---------|  
 | `0` | `08` | Message ID - Update cloud |
 | `1` | `38` | Current temp in Hex (`56`deg here) |
-| `2` | `00` | Unknown |
+| `2` | `00` | Steamer intensity (`00`-`0a` observed) |
 | `3` | `00` | Light state (`00` off, `01` on) |
 | `4` | `00` | Unknown |
 | `5` | `00` | Accessory configuration bitmask (`01` steamer, `02` light, `03` both) |
@@ -239,6 +257,19 @@ Message is used to send heater state changes to the cloud.
 so it is easier to compare captures while toggling external features.
 
 For convenience, the TCP server also prints a byte-by-byte diff between consecutive `0x08` frames.
+
+**Observed steamer intensity update**
+```
+08 41 00 00 00 03 03 00 00 00 00 00 00 00 00 71 be f4 69 00 00 00 00 01 00
+08 41 0a 00 00 03 03 00 00 00 00 00 00 00 00 c1 be f4 69 00 00 00 00 01 00
+```
+
+Diff:
+```
+byte 2: 00 -> 0a
+```
+
+This indicates byte `2` is steamer intensity, with `0a` representing intensity level `10`.
 
 ### 0x09 - Status ping
 

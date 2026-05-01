@@ -27,6 +27,7 @@ type SensorUpdate = {
 type CloudUpdate = {
     messageType: number;
     targetTemperature: number;
+    steamerIntensity: number;
     lightOn: boolean;
     lightConfigured: boolean;
     steamerConfigured: boolean;
@@ -47,6 +48,7 @@ type CloudUpdate = {
 type ControlUpdate = {
     messageType: number;
     targetTemperature: number;
+    steamerIntensity: number;
     lightOn: boolean;
     lightConfigured: boolean;
     steamerConfigured: boolean;
@@ -64,7 +66,7 @@ type ControlUpdate = {
     rawHex: string;
 }
 
-type SessionState = Pick<CloudUpdate, 'messageType' | 'targetTemperature' | 'lightOn' | 'lightConfigured' | 'steamerConfigured' | 'flags' | 'heatingStartedAt' | 'heatingEndsAt' | 'reportedAt' | 'rawHex'>;
+type SessionState = Pick<CloudUpdate, 'messageType' | 'targetTemperature' | 'steamerIntensity' | 'lightOn' | 'lightConfigured' | 'steamerConfigured' | 'flags' | 'heatingStartedAt' | 'heatingEndsAt' | 'reportedAt' | 'rawHex'>;
 
 type ControllerState = {
     handshake?: Handshake;

@@ -10,3 +10,7 @@ type TurnOffRequest = {
 type LightToggleRequest = {
     lightOn: boolean;
 }
+
+type SteamerSetRequest = {
+    intensity: number;
+}

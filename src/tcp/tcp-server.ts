@@ -53,6 +53,8 @@ const getKnownAccessoryConfig = () => controllerState.cloudUpdate?.flags.accesso
 
 const getKnownLightState = () => controllerState.cloudUpdate?.lightOn ?? false
 
+const getKnownSteamerIntensity = () => controllerState.cloudUpdate?.steamerIntensity ?? 0
+
 const getKnownHeatingWindow = () => ({
     heatingStartedAt: controllerState.cloudUpdate?.heatingStartedAt ?? null,
     heatingEndsAt: controllerState.cloudUpdate?.heatingEndsAt ?? null,
@@ -143,7 +145,9 @@ eventBus.on(UserEvents.TURN_ON, (request: TurnOnRequest) => {
     const message = msgBuilder.heaterOn(
         request.targetTemperature,
         request.durationHours,
-        getKnownLightState()
+        getKnownLightState(),
+        getKnownSteamerIntensity(),
+        getKnownAccessoryConfig()
     )
     logOutgoing(message)
     heaterTcpSocket.write(message)
@@ -157,7 +161,9 @@ eventBus.on(UserEvents.TURN_OFF, (request: TurnOffRequest) => {
 
     const message = msgBuilder.heaterOff(
         request.targetTemperature,
-        getKnownLightState()
+        getKnownLightState(),
+        getKnownSteamerIntensity(),
+        getKnownAccessoryConfig()
     )
     logOutgoing(message)
     heaterTcpSocket.write(message)
@@ -174,11 +180,33 @@ eventBus.on(UserEvents.LIGHT_SET, (request: LightToggleRequest) => {
     const message = msgBuilder.lightControl(
         request.lightOn,
         getKnownTargetTemperature(),
+        getKnownSteamerIntensity(),
         getKnownAccessoryConfig(),
         heatingStartedAt,
         heatingEndsAt
     )
     console.log('[📤 Sending 0x07 light control packet]')
+    logOutgoing(message)
+    heaterTcpSocket.write(message)
+})
+
+eventBus.on(UserEvents.STEAMER_SET, (request: SteamerSetRequest) => {
+    if (!heaterTcpSocket) {
+        console.log('Heater not connected')
+        return
+    }
+
+    const {heatingStartedAt, heatingEndsAt} = getKnownHeatingWindow()
+
+    const message = msgBuilder.steamerControl(
+        request.intensity,
+        getKnownTargetTemperature(),
+        getKnownLightState(),
+        getKnownAccessoryConfig(),
+        heatingStartedAt,
+        heatingEndsAt
+    )
+    console.log('[📤 Sending 0x07 steamer control packet]')
     logOutgoing(message)
     heaterTcpSocket.write(message)
 })

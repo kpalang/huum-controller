@@ -29,6 +29,7 @@ const parseStateUpdate = (buffer: Uint8Array): CloudUpdate | ControlUpdate => {
     return {
         messageType: buffer[0] ?? 0,
         targetTemperature: buffer[1] ?? 0,
+        steamerIntensity: buffer[2] ?? 0,
         lightOn: lightStateFlag !== 0,
         lightConfigured: (accessoryConfigFlag & 0x02) !== 0,
         steamerConfigured: (accessoryConfigFlag & 0x01) !== 0,
@@ -101,19 +102,28 @@ export const getEffectiveHeaterStatus = (
 }
 
 export const parseSensorReading = (buffer: Uint8Array): SensorUpdate => {
-    const rawDoorFlag = buffer[2]
-    const rawStatus = buffer[4]
+    const hasFullTelemetryFields = buffer.length >= 5
+    const rawDoorFlag = hasFullTelemetryFields ? buffer[2] : undefined
+    const rawStatus = hasFullTelemetryFields ? buffer[4] : undefined
 
-    return {
+    const update: SensorUpdate = {
         temperature: buffer[1] ?? 0,
         frequencySeconds: buffer[3] ?? 0,
-        rawDoorFlag,
-        rawDoorFlagHex: rawDoorFlag === undefined ? undefined : `0x${rawDoorFlag.toString(16).padStart(2, '0')}`,
-        doorOpen: rawDoorFlag === undefined ? undefined : rawDoorFlag !== 0,
-        rawStatus,
-        rawStatusHex: rawStatus === undefined ? undefined : `0x${rawStatus.toString(16).padStart(2, '0')}`,
-        rawStatusLabel: getSensorStatusLabel(rawStatus),
     }
+
+    if (rawDoorFlag !== undefined) {
+        update.rawDoorFlag = rawDoorFlag
+        update.rawDoorFlagHex = `0x${rawDoorFlag.toString(16).padStart(2, '0')}`
+        update.doorOpen = rawDoorFlag !== 0
+    }
+
+    if (rawStatus !== undefined) {
+        update.rawStatus = rawStatus
+        update.rawStatusHex = `0x${rawStatus.toString(16).padStart(2, '0')}`
+        update.rawStatusLabel = getSensorStatusLabel(rawStatus)
+    }
+
+    return update
 }
 
 export const parseCloudUpdate = (buffer: Uint8Array): CloudUpdate => {

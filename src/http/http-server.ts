@@ -1,7 +1,7 @@
 import {HuumEvents, UserEvents} from '../events/eventEnum.ts'
 import eventBus from '../events/eventbus.ts'
 import {controllerState} from '../tcp/tcp-server.ts'
-import {getEffectiveHeaterStatus} from '../tcp/parser.ts'
+import {buildStatusResponse, validateSteamerRequest} from './http-helpers.ts'
 
 const HTTP_PORT: string = process.env.HTTP_PORT || '8080'
 const HTTP_HOSTNAME: string = process.env.HTTP_HOSTNAME || '0.0.0.0'
@@ -13,25 +13,7 @@ Bun.serve({
     routes: {
         '/status': {
             GET: async () => {
-                return Response.json({
-                    temperature: controllerState.sensorReading?.temperature ?? 0,
-                    frequencySeconds: controllerState.sensorReading?.frequencySeconds ?? 0,
-                    doorOpen: controllerState.sensorReading?.doorOpen ?? null,
-                    doorRaw: controllerState.sensorReading?.rawDoorFlag ?? null,
-                    doorRawHex: controllerState.sensorReading?.rawDoorFlagHex ?? null,
-                    heaterStatus: getEffectiveHeaterStatus(controllerState, DEFAULT_HEARTBEAT_FREQUENCY_SECONDS),
-                    targetTemperature: controllerState.sessionState?.targetTemperature ?? null,
-                    lightOn: controllerState.sessionState?.lightOn ?? false,
-                    lightConfigured: controllerState.sessionState?.lightConfigured ?? false,
-                    steamerConfigured: controllerState.sessionState?.steamerConfigured ?? false,
-                    sensorStatusRaw: controllerState.sensorReading?.rawStatus ?? null,
-                    sensorStatusHex: controllerState.sensorReading?.rawStatusHex ?? null,
-                    sensorStatusLabel: controllerState.sensorReading?.rawStatusLabel ?? null,
-                    sensorStatusTrusted: false,
-                    heatingStartedAt: controllerState.sessionState?.heatingStartedAt ?? null,
-                    heatingEndsAt: controllerState.sessionState?.heatingEndsAt ?? null,
-                    reportedAt: controllerState.sessionState?.reportedAt ?? null,
-                })
+                return Response.json(buildStatusResponse(controllerState, DEFAULT_HEARTBEAT_FREQUENCY_SECONDS))
             },
         },
 
@@ -66,6 +48,30 @@ Bun.serve({
                     accepted: true,
                     requestedLightOn: request.lightOn,
                     note: 'Sends a confirmed 0x07 light-control packet using byte 3 as live light state and byte 5 as accessory configuration.',
+                })
+            },
+        },
+
+        '/steamer': {
+            POST: async req => {
+                const request = await req.json() as SteamerSetRequest
+                const validation = validateSteamerRequest(request, controllerState.sessionState)
+
+                if (!validation.ok) {
+                    return Response.json({
+                        accepted: false,
+                        error: validation.message,
+                    }, {
+                        status: validation.status,
+                    })
+                }
+
+                eventBus.emit(UserEvents.STEAMER_SET, {intensity: validation.intensity})
+
+                return Response.json({
+                    accepted: true,
+                    requestedIntensity: validation.intensity,
+                    note: 'Sends a confirmed 0x07 steamer-control packet using byte 2 as live steamer intensity.',
                 })
             },
         },
