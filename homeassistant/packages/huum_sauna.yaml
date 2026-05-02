@@ -100,7 +100,7 @@ huum_control_huum_sauna:
 
         - name: Huum Sauna Status
           unique_id: huum_sauna_status
-          icon: mdi:sauna
+          icon: mdi:information
           availability: "{{ is_state('binary_sensor.huum_sauna_api_available', 'on') }}"
           state: "{{ state_attr('sensor.huum_sauna_api', 'heaterStatus') | default('Unknown', true) }}"
 
@@ -138,7 +138,7 @@ huum_control_huum_sauna:
     - switch:
         - name: Huum Sauna
           unique_id: huum_sauna
-          icon: mdi:sauna
+          icon: mdi:heat-wave
           availability: "{{ is_state('binary_sensor.huum_sauna_api_available', 'on') }}"
           state: "{{ state_attr('sensor.huum_sauna_api', 'heaterStatus') == 'OnlineHeating' }}"
           turn_on:
