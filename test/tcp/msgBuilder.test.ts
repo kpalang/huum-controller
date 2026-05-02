@@ -28,6 +28,12 @@ test("heaterOn preserves target, timing, light state, steamer intensity, and acc
     expect(readTimestamp(15)).toBeLessThanOrEqual(after)
 })
 
+test("heaterOn calculates duration properly for float hours", () => {
+    const bytes = heaterOn(50, 1.5, true, 0x05, 0x03)
+    const readTimestamp = (offset: number) => Buffer.from(bytes).readUInt32LE(offset)
+    expect(readTimestamp(11) - readTimestamp(7)).toBe(1.5 * 60 * 60)
+})
+
 test("heaterOn keeps light off when requested and preserves zero steamer intensity", () => {
     const bytes = heaterOn(50, 2, false, 0x00, 0x02)
 

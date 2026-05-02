@@ -1,17 +1,17 @@
 huum_control_huum_sauna:
   rest_command:
     huum_sauna_start:
-      url: "http://localhost:8080/start"
+      url: "http://homeassistant.local:8080/start"
       method: POST
       content_type: "application/json"
       payload: >-
         {
           "targetTemperature": {{ target_temperature | int }},
-          "durationHours": {{ duration_hours | int }}
+          "durationHours": {{ duration_hours | float }}
         }
 
     huum_sauna_stop:
-      url: "http://localhost:8080/stop"
+      url: "http://homeassistant.local:8080/stop"
       method: POST
       content_type: "application/json"
       payload: >-
@@ -20,16 +20,13 @@ huum_control_huum_sauna:
         }
 
     huum_light_set:
-      url: "http://localhost:8080/light"
+      url: "http://homeassistant.local:8080/light"
       method: POST
       content_type: "application/json"
-      payload: >-
-        {
-          "lightOn": {{ light_on | tojson }}
-        }
+      payload: '{"lightOn": {{ light_on | tojson }}}'
 
     huum_steamer_set:
-      url: "http://localhost:8080/steamer"
+      url: "http://homeassistant.local:8080/steamer"
       method: POST
       content_type: "application/json"
       payload: >-
@@ -53,7 +50,7 @@ huum_control_huum_sauna:
       icon: mdi:timer-outline
       min: 1
       max: 6
-      step: 1
+      step: 0.25
       mode: slider
       unit_of_measurement: "h"
       initial: 3
@@ -62,10 +59,10 @@ huum_control_huum_sauna:
     - platform: rest
       name: Huum Sauna API
       unique_id: huum_sauna_api
-      resource: "http://localhost:8080/status"
+      resource: "http://homeassistant.local:8080/status"
       method: GET
       scan_interval: 30
-      timeout: 10
+      timeout: 5
       value_template: "{{ value_json.heaterStatus }}"
       json_attributes:
         - temperature
@@ -115,7 +112,6 @@ huum_control_huum_sauna:
         - name: Huum Steamer Intensity
           unique_id: huum_steamer_intensity
           icon: mdi:weather-fog
-          mode: slider
           unit_of_measurement: "level"
           availability: >-
             {{
@@ -130,7 +126,7 @@ huum_control_huum_sauna:
             - action: rest_command.huum_steamer_set
               data:
                 intensity: "{{ value | int }}"
-            - delay: 00:00:03
+            - delay: 00:00:01
             - action: homeassistant.update_entity
               target:
                 entity_id: sensor.huum_sauna_api
@@ -145,8 +141,8 @@ huum_control_huum_sauna:
             - action: rest_command.huum_sauna_start
               data:
                 target_temperature: "{{ states('input_number.huum_sauna_target_temperature') | int(65) }}"
-                duration_hours: "{{ states('input_number.huum_sauna_duration') | int(3) }}"
-            - delay: 00:00:03
+                duration_hours: "{{ states('input_number.huum_sauna_duration') | float }}"
+            - delay: 00:00:01
             - action: homeassistant.update_entity
               target:
                 entity_id: sensor.huum_sauna_api
@@ -154,7 +150,7 @@ huum_control_huum_sauna:
             - action: rest_command.huum_sauna_stop
               data:
                 target_temperature: "{{ states('input_number.huum_sauna_target_temperature') | int(65) }}"
-            - delay: 00:00:03
+            - delay: 00:00:01
             - action: homeassistant.update_entity
               target:
                 entity_id: sensor.huum_sauna_api
@@ -172,7 +168,7 @@ huum_control_huum_sauna:
             - action: rest_command.huum_light_set
               data:
                 light_on: true
-            - delay: 00:00:03
+            - delay: 00:00:01
             - action: homeassistant.update_entity
               target:
                 entity_id: sensor.huum_sauna_api
@@ -180,7 +176,7 @@ huum_control_huum_sauna:
             - action: rest_command.huum_light_set
               data:
                 light_on: false
-            - delay: 00:00:03
+            - delay: 00:00:01
             - action: homeassistant.update_entity
               target:
                 entity_id: sensor.huum_sauna_api

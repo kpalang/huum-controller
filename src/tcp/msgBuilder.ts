@@ -34,8 +34,7 @@ const heaterOn = (
     accessoryConfig: number = 0x02
 ): Uint8Array => {
     const turnOnTime = new Date()
-    const turnOffTime = new Date()
-    turnOffTime.setHours(turnOffTime.getHours() + durationHours)
+    const turnOffTime = new Date(turnOnTime.getTime() + durationHours * 3600000)
 
     const buffer = buildStateControlPacket(targetTemp, steamerIntensity, lightOn, accessoryConfig, turnOnTime)
     buffer.set(dateToHexLE(turnOnTime), 7)
