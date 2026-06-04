@@ -9,4 +9,6 @@ export enum HuumEvents {
 export enum UserEvents {
     TURN_ON = 'user-turn-on',
     TURN_OFF = 'user-turn-off',
+    LIGHT_SET = 'user-light-set',
+    STEAMER_SET = 'user-steamer-set',
 }

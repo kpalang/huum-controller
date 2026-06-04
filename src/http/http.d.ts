@@ -6,3 +6,11 @@ type TurnOnRequest = {
 type TurnOffRequest = {
     targetTemperature: number;
 }
+
+type LightToggleRequest = {
+    lightOn: boolean;
+}
+
+type SteamerSetRequest = {
+    intensity: number;
+}

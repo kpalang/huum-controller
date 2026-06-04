@@ -1,0 +1,20 @@
+services:
+  huum-controller:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: huum-controller
+    ports:
+      - "6969:6969"      # TCP Server (sauna hardware)
+      - "8080:8080"      # HTTP Server (REST API)
+    environment:
+      TCP_HOSTNAME: 0.0.0.0
+      TCP_PORT: 6969
+      HTTP_HOSTNAME: 0.0.0.0
+      HTTP_PORT: 8080
+      UPDATE_FREQUENCY: 60
+      DEBUG_PROTOCOL: 1  # Set to 1 to enable protocol logging
+    restart: unless-stopped
+    # Uncomment to see all logs including debug output
+    # environment:
+    #   DEBUG_PROTOCOL: 1

@@ -1,0 +1,182 @@
+huum_control_huum_sauna:
+  rest_command:
+    huum_sauna_start:
+      url: "http://homeassistant.local:8080/start"
+      method: POST
+      content_type: "application/json"
+      payload: >-
+        {
+          "targetTemperature": {{ target_temperature | int }},
+          "durationHours": {{ duration_hours | float }}
+        }
+
+    huum_sauna_stop:
+      url: "http://homeassistant.local:8080/stop"
+      method: POST
+      content_type: "application/json"
+      payload: >-
+        {
+          "targetTemperature": {{ target_temperature | int }}
+        }
+
+    huum_light_set:
+      url: "http://homeassistant.local:8080/light"
+      method: POST
+      content_type: "application/json"
+      payload: '{"lightOn": {{ light_on | tojson }}}'
+
+    huum_steamer_set:
+      url: "http://homeassistant.local:8080/steamer"
+      method: POST
+      content_type: "application/json"
+      payload: >-
+        {
+          "intensity": {{ intensity | int }}
+        }
+
+  input_number:
+    huum_sauna_target_temperature:
+      name: Huum Sauna Target Temperature
+      icon: mdi:thermometer
+      min: 40
+      max: 110
+      step: 1
+      mode: box
+      unit_of_measurement: "°C"
+      initial: 65
+
+    huum_sauna_duration:
+      name: Huum Sauna Duration
+      icon: mdi:timer-outline
+      min: 1
+      max: 6
+      step: 0.25
+      mode: slider
+      unit_of_measurement: "h"
+      initial: 3
+
+  sensor:
+    - platform: rest
+      name: Huum Sauna API
+      unique_id: huum_sauna_api
+      resource: "http://homeassistant.local:8080/status"
+      method: GET
+      scan_interval: 30
+      timeout: 5
+      value_template: "{{ value_json.heaterStatus }}"
+      json_attributes:
+        - temperature
+        - frequencySeconds
+        - heaterStatus
+        - targetTemperature
+        - lightOn
+        - lightConfigured
+        - steamerConfigured
+        - steamerIntensity
+        - doorOpen
+
+  template:
+    - binary_sensor:
+        - name: Huum Sauna API Available
+          unique_id: huum_sauna_api_available
+          device_class: connectivity
+          state: >-
+            {{
+              states('sensor.huum_sauna_api') not in ['unavailable', 'unknown', 'none', '']
+              and state_attr('sensor.huum_sauna_api', 'heaterStatus') != 'Offline'
+            }}
+
+    - sensor:
+        - name: Huum Sauna Temperature
+          unique_id: huum_sauna_temperature
+          unit_of_measurement: "°C"
+          device_class: temperature
+          state_class: measurement
+          availability: "{{ is_state('binary_sensor.huum_sauna_api_available', 'on') }}"
+          state: "{{ state_attr('sensor.huum_sauna_api', 'temperature') | int(0) }}"
+
+        - name: Huum Sauna Status
+          unique_id: huum_sauna_status
+          icon: mdi:information
+          availability: "{{ is_state('binary_sensor.huum_sauna_api_available', 'on') }}"
+          state: "{{ state_attr('sensor.huum_sauna_api', 'heaterStatus') | default('Unknown', true) }}"
+
+        - name: Huum Sauna Configured Target Temperature
+          unique_id: huum_sauna_configured_target_temperature
+          unit_of_measurement: "°C"
+          icon: mdi:thermometer-check
+          availability: "{{ is_state('binary_sensor.huum_sauna_api_available', 'on') }}"
+          state: "{{ state_attr('sensor.huum_sauna_api', 'targetTemperature') | int(0) }}"
+
+    - number:
+        - name: Huum Steamer Intensity
+          unique_id: huum_steamer_intensity
+          icon: mdi:weather-fog
+          unit_of_measurement: "level"
+          availability: >-
+            {{
+              is_state('binary_sensor.huum_sauna_api_available', 'on')
+              and (state_attr('sensor.huum_sauna_api', 'steamerConfigured') | bool(false))
+            }}
+          min: 0
+          max: 10
+          step: 1
+          state: "{{ state_attr('sensor.huum_sauna_api', 'steamerIntensity') | int(0) }}"
+          set_value:
+            - action: rest_command.huum_steamer_set
+              data:
+                intensity: "{{ value | int }}"
+            - delay: 00:00:01
+            - action: homeassistant.update_entity
+              target:
+                entity_id: sensor.huum_sauna_api
+
+    - switch:
+        - name: Huum Sauna
+          unique_id: huum_sauna
+          icon: mdi:heat-wave
+          availability: "{{ is_state('binary_sensor.huum_sauna_api_available', 'on') }}"
+          state: "{{ state_attr('sensor.huum_sauna_api', 'heaterStatus') == 'OnlineHeating' }}"
+          turn_on:
+            - action: rest_command.huum_sauna_start
+              data:
+                target_temperature: "{{ states('input_number.huum_sauna_target_temperature') | int(65) }}"
+                duration_hours: "{{ states('input_number.huum_sauna_duration') | float }}"
+            - delay: 00:00:01
+            - action: homeassistant.update_entity
+              target:
+                entity_id: sensor.huum_sauna_api
+          turn_off:
+            - action: rest_command.huum_sauna_stop
+              data:
+                target_temperature: "{{ states('input_number.huum_sauna_target_temperature') | int(65) }}"
+            - delay: 00:00:01
+            - action: homeassistant.update_entity
+              target:
+                entity_id: sensor.huum_sauna_api
+
+        - name: Huum Light
+          unique_id: huum_light
+          icon: mdi:lightbulb
+          availability: >-
+            {{
+              is_state('binary_sensor.huum_sauna_api_available', 'on')
+              and (state_attr('sensor.huum_sauna_api', 'lightConfigured') | bool(false))
+            }}
+          state: "{{ state_attr('sensor.huum_sauna_api', 'lightOn') | bool(false) }}"
+          turn_on:
+            - action: rest_command.huum_light_set
+              data:
+                light_on: true
+            - delay: 00:00:01
+            - action: homeassistant.update_entity
+              target:
+                entity_id: sensor.huum_sauna_api
+          turn_off:
+            - action: rest_command.huum_light_set
+              data:
+                light_on: false
+            - delay: 00:00:01
+            - action: homeassistant.update_entity
+              target:
+                entity_id: sensor.huum_sauna_api

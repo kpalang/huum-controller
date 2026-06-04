@@ -1,7 +1,10 @@
 export enum SaunaStatus {
+    Status21 = 0x21,
+    Status22 = 0x22,
     Offline = 0x23,
     OnlineHeating = 0x24,
-    OnlineNotHeating = 0x25
+    OnlineNotHeating = 0x25,
+    Status26 = 0x26
 }
 
 export enum MessageType {
