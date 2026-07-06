@@ -5,6 +5,9 @@ This is a sample implementation of the Huum sauna controller communication proto
 
 This repository is accompanied by a [blog post](https://kaurpalang.com/posts/invading-the-sauna/).
 
+> [!CAUTION]
+> This approach does not work with firmware `4.4.18.0-4`. More info in [`#4`](https://github.com/kpalang/huum-controller/issues/4).
+
 ## Requirements
 - [Bun](https://bun.sh/)
   - The project is using Bun 1.12.4
