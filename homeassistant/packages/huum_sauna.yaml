@@ -1,0 +1,130 @@
+rest_command:
+  huum_sauna_start:
+    url: "http://YOUR-HUUM-HOST:8080/start"
+    method: POST
+    content_type: "application/json"
+    payload: >-
+      {
+        "targetTemperature": {{ target_temperature | int }},
+        "durationHours": {{ duration_hours | int }}
+      }
+
+  huum_sauna_stop:
+    url: "http://YOUR-HUUM-HOST:8080/stop"
+    method: POST
+    content_type: "application/json"
+    payload: >-
+      {
+        "targetTemperature": {{ target_temperature | int }}
+      }
+
+  huum_light_set:
+    url: "http://YOUR-HUUM-HOST:8080/light"
+    method: POST
+    content_type: "application/json"
+    payload: >-
+      {
+        "lightOn": {{ light_on | tojson }}
+      }
+
+input_number:
+  huum_sauna_target_temperature:
+    name: Huum Sauna Target Temperature
+    icon: mdi:thermometer
+    min: 40
+    max: 110
+    step: 1
+    mode: box
+    unit_of_measurement: "°C"
+    initial: 65
+
+  huum_sauna_duration:
+    name: Huum Sauna Duration
+    icon: mdi:timer-outline
+    min: 1
+    max: 12
+    step: 1
+    mode: slider
+    unit_of_measurement: "h"
+    initial: 3
+
+sensor:
+  - platform: rest
+    name: Huum Sauna API
+    resource: "http://YOUR-HUUM-HOST:8080/status"
+    method: GET
+    scan_interval: 30
+    timeout: 10
+    value_template: "{{ value_json.heaterStatus }}"
+    json_attributes:
+      - temperature
+      - frequencySeconds
+      - heaterStatus
+      - targetTemperature
+      - lightOn
+      - lightConfigured
+      - steamerConfigured
+
+template:
+  - binary_sensor:
+      - name: Huum Sauna API Available
+        unique_id: huum_sauna_api_available
+        device_class: connectivity
+        state: >-
+          {{ states('sensor.huum_sauna_api') not in ['unavailable', 'unknown', 'none', ''] }}
+
+  - sensor:
+      - name: Huum Sauna Temperature
+        unique_id: huum_sauna_temperature
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        availability: "{{ is_state('binary_sensor.huum_sauna_api_available', 'on') }}"
+        state: "{{ state_attr('sensor.huum_sauna_api', 'temperature') | int(0) }}"
+
+      - name: Huum Sauna Status
+        unique_id: huum_sauna_status
+        icon: mdi:sauna
+        availability: "{{ is_state('binary_sensor.huum_sauna_api_available', 'on') }}"
+        state: "{{ state_attr('sensor.huum_sauna_api', 'heaterStatus') | default('Unknown', true) }}"
+
+      - name: Huum Sauna Configured Target Temperature
+        unique_id: huum_sauna_configured_target_temperature
+        unit_of_measurement: "°C"
+        icon: mdi:thermometer-check
+        availability: "{{ is_state('binary_sensor.huum_sauna_api_available', 'on') }}"
+        state: "{{ state_attr('sensor.huum_sauna_api', 'targetTemperature') | int(0) }}"
+
+  - switch:
+      - name: Huum Sauna
+        unique_id: huum_sauna
+        icon: mdi:sauna
+        availability: "{{ is_state('binary_sensor.huum_sauna_api_available', 'on') }}"
+        state: "{{ state_attr('sensor.huum_sauna_api', 'heaterStatus') == 'OnlineHeating' }}"
+        turn_on:
+          action: rest_command.huum_sauna_start
+          data:
+            target_temperature: "{{ states('input_number.huum_sauna_target_temperature') | int(65) }}"
+            duration_hours: "{{ states('input_number.huum_sauna_duration') | int(3) }}"
+        turn_off:
+          action: rest_command.huum_sauna_stop
+          data:
+            target_temperature: "{{ states('input_number.huum_sauna_target_temperature') | int(65) }}"
+
+      - name: Huum Light
+        unique_id: huum_light
+        icon: mdi:lightbulb
+        availability: >-
+          {{
+            is_state('binary_sensor.huum_sauna_api_available', 'on')
+            and (state_attr('sensor.huum_sauna_api', 'lightConfigured') | bool(false))
+          }}
+        state: "{{ state_attr('sensor.huum_sauna_api', 'lightOn') | bool(false) }}"
+        turn_on:
+          action: rest_command.huum_light_set
+          data:
+            light_on: true
+        turn_off:
+          action: rest_command.huum_light_set
+          data:
+            light_on: false
