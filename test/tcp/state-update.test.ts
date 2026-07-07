@@ -1,0 +1,61 @@
+import {expect, test} from "bun:test"
+
+import {deriveSessionHeaterStatus, getEffectiveHeaterStatus, parseCloudUpdate, parseControlUpdate, parseSensorReading} from "../../src/tcp/parser.ts"
+
+test("cloud updates with no heating window report online not heating", () => {
+    const update = parseCloudUpdate(
+        Uint8Array.from([0x08, 0x41, 0x00, 0x00, 0x00, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x6A, 0xD3, 0x69, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00])
+    )
+
+    expect(deriveSessionHeaterStatus(update)).toBe('OnlineNotHeating')
+    expect(update.lightConfigured).toBe(true)
+})
+
+test("cloud updates with a heating window report online heating", () => {
+    const update = parseCloudUpdate(
+        Uint8Array.from([0x08, 0x32, 0x00, 0x00, 0x00, 0x02, 0x03, 0xF0, 0x5E, 0xD5, 0x69, 0x10, 0x7B, 0xD5, 0x69, 0x3C, 0x5F, 0xD5, 0x69, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00])
+    )
+
+    expect(deriveSessionHeaterStatus(update)).toBe('OnlineHeating')
+})
+
+test("control echoes update light state immediately", () => {
+    const update = parseControlUpdate(
+        Uint8Array.from([0x07, 0x41, 0x00, 0x01, 0x00, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x6A, 0xD3, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00])
+    )
+
+    expect(update.lightOn).toBe(true)
+    expect(deriveSessionHeaterStatus(update)).toBe('OnlineNotHeating')
+})
+
+test("sensor raw status does not drive session heater state", () => {
+    const update = parseCloudUpdate(
+        Uint8Array.from([0x08, 0x32, 0x00, 0x00, 0x00, 0x02, 0x03, 0xF0, 0x5E, 0xD5, 0x69, 0x10, 0x7B, 0xD5, 0x69, 0x3C, 0x5F, 0xD5, 0x69, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00])
+    )
+    const sensor = parseSensorReading(
+        Uint8Array.from([0x09, 0x13, 0x00, 0x3C, 0x23, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+    )
+
+    expect(deriveSessionHeaterStatus(update)).toBe('OnlineHeating')
+    expect(sensor.rawStatusLabel).toBe('OnlineNotHeating')
+})
+
+test("deriveSessionHeaterStatus returns unknown before any session state", () => {
+    expect(deriveSessionHeaterStatus(undefined)).toBe('Unknown')
+})
+
+test("effective heater status becomes offline after 3 missed heartbeats", () => {
+    expect(getEffectiveHeaterStatus({
+        heaterStatus: 'OnlineNotHeating',
+        sensorReading: {temperature: 22, frequencySeconds: 60},
+        lastHeartbeatAt: new Date('2026-04-08T16:05:41.340Z'),
+    }, 60, new Date('2026-04-08T16:08:42.000Z'))).toBe('Offline')
+})
+
+test("effective heater status stays online until the third heartbeat interval has fully elapsed", () => {
+    expect(getEffectiveHeaterStatus({
+        heaterStatus: 'OnlineHeating',
+        sensorReading: {temperature: 22, frequencySeconds: 60},
+        lastHeartbeatAt: new Date('2026-04-08T16:05:41.340Z'),
+    }, 60, new Date('2026-04-08T16:08:41.340Z'))).toBe('OnlineHeating')
+})
